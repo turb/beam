@@ -186,8 +186,15 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
               .prepare(prepareJobRequest);
       LOG.info("PrepareJobResponse: {}", prepareJobResponse);
 
-      ApiServiceDescriptor artifactStagingEndpoint =
-          prepareJobResponse.getArtifactStagingEndpoint();
+      final String overrideArtifactEndpoint =
+          options.as(PortablePipelineOptions.class).getArtifactEndpoint();
+      final ApiServiceDescriptor artifactStagingEndpoint;
+      if (overrideArtifactEndpoint == null) {
+        artifactStagingEndpoint = prepareJobResponse.getArtifactStagingEndpoint();
+      } else {
+        artifactStagingEndpoint =
+            ApiServiceDescriptor.newBuilder().setUrl(overrideArtifactEndpoint).build();
+      }
       String stagingSessionToken = prepareJobResponse.getStagingSessionToken();
 
       try (CloseableResource<ManagedChannel> artifactChannel =

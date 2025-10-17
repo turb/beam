@@ -32,6 +32,13 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
   void setJobEndpoint(String endpoint);
 
   @Description(
+      "Artifact staging endpoint to use. Should be in the form of host and port, e.g. localhost:8098. If none is specified, the artifact endpoint sent from the job server is used.")
+  @Nullable
+  String getArtifactEndpoint();
+
+  void setArtifactEndpoint(String endpoint);
+
+  @Description(
       "Job service request timeout in seconds. The timeout "
           + "determines the max time the driver program will wait to "
           + "get a response from the job server. NOTE: the timeout does not "
