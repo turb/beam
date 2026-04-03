@@ -53,7 +53,9 @@ public class LazyFlinkSourceSplitEnumerator<T>
   private final PipelineOptions pipelineOptions;
   private final int numSplits;
   private final List<FlinkSourceSplit<T>> pendingSplits;
+  private final List<Integer> pendingRequests;
   private boolean splitsInitialized;
+  private boolean splitsReady;
 
   public LazyFlinkSourceSplitEnumerator(
       SplitEnumeratorContext<FlinkSourceSplit<T>> context,
@@ -66,7 +68,9 @@ public class LazyFlinkSourceSplitEnumerator<T>
     this.pipelineOptions = pipelineOptions;
     this.numSplits = numSplits;
     this.pendingSplits = new ArrayList<>(numSplits);
+    this.pendingRequests = new ArrayList<>();
     this.splitsInitialized = splitInitialized;
+    this.splitsReady = false;
   }
 
   @Override
@@ -94,9 +98,13 @@ public class LazyFlinkSourceSplitEnumerator<T>
         },
         (sourceSplits, error) -> {
           if (error != null) {
-            pendingSplits.addAll(sourceSplits);
             throw new RuntimeException("Failed to start source enumerator.", error);
           }
+          splitsReady = true;
+          for (int subtask : pendingRequests) {
+            handleSplitRequest(subtask, null);
+          }
+          pendingRequests.clear();
         });
   }
 
@@ -111,6 +119,12 @@ public class LazyFlinkSourceSplitEnumerator<T>
       final String hostInfo =
           hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
       LOG.info("Subtask {} {} is requesting a file source split", subtask, hostInfo);
+    }
+
+    if (!splitsReady) {
+      LOG.info("Subtask {} requested split before enumeration done, buffering", subtask);
+      pendingRequests.add(subtask);
+      return;
     }
 
     if (!pendingSplits.isEmpty()) {
